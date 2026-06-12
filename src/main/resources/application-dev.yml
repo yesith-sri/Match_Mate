@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: matchmate
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/matchmate_db
+    username: postgres
+    password: yesithsri
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+jwt:
+  secret: matchmate-super-secret-jwt-key-2024-production-minimum-64-characters-required-for-hs512-algorithm-security
+  expiration: 86400000
+
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: INFO
+    com.matchmate: DEBUG

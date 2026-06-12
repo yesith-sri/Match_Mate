@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="create-users-table" author="matchmate-team">
+
+        <!-- Create sequence for auto-increment -->
+        <createSequence sequenceName="users_user_id_seq" startValue="1" incrementBy="1"/>
+
+        <createTable tableName="users">
+
+            <column name="user_id" type="BIGINT" defaultValueSequenceNext="users_user_id_seq">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="email" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_users_email"/>
+            </column>
+
+            <column name="password" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="first_name" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="last_name" type="VARCHAR(50)"/>
+
+            <column name="age" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="gender" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="phone_number" type="VARCHAR(20)"/>
+
+            <column name="bio" type="TEXT"/>
+
+            <column name="role" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="is_active" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="is_email_verified" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="city" type="VARCHAR(100)"/>
+
+            <column name="country" type="VARCHAR(100)"/>
+
+            <column name="profile_image_url" type="VARCHAR(255)"/>
+
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="updated_at" type="TIMESTAMP"/>
+
+        </createTable>
+    </changeSet>
+
+    <!-- Create indexes for better query performance -->
+    <changeSet id="create-users-indexes" author="matchmate-team">
+        <createIndex indexName="idx_users_email" tableName="users">
+            <column name="email"/>
+        </createIndex>
+
+        <createIndex indexName="idx_users_role" tableName="users">
+            <column name="role"/>
+        </createIndex>
+
+        <createIndex indexName="idx_users_is_active" tableName="users">
+            <column name="is_active"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
