@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.10.xsd">
+
+    <changeSet id="001-create-event-tables" author="team">
+
+        <!-- Create Events Table -->
+        <createTable tableName="events">
+            <column name="event_id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_end_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="location" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="latitude" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="longitude" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ticket_price" type="NUMERIC(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_seats" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="available_seats" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="image_url" type="VARCHAR(500)"/>
+            <column name="special_instructions" type="VARCHAR(1000)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueDate="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueDate="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_events_created_by" references="users(user_id)"/>
+            </column>
+        </createTable>
+
+        <!-- Create Tickets Table -->
+        <createTable tableName="tickets">
+            <column name="ticket_id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ticket_code" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="event_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_tickets_event" references="events(event_id)"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_tickets_user" references="users(user_id)"/>
+            </column>
+            <column name="ticket_status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="purchase_price" type="NUMERIC(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="purchased_at" type="TIMESTAMP" defaultValueDate="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used_at" type="TIMESTAMP"/>
+            <column name="cancelled_at" type="TIMESTAMP"/>
+            <column name="cancellation_reason" type="VARCHAR(500)"/>
+        </createTable>
+
+        <!-- Create Indexes -->
+        <createIndex indexName="idx_events_status" tableName="events">
+            <column name="event_status"/>
+        </createIndex>
+
+        <createIndex indexName="idx_events_type" tableName="events">
+            <column name="event_type"/>
+        </createIndex>
+
+        <createIndex indexName="idx_events_date" tableName="events">
+            <column name="event_date"/>
+        </createIndex>
+
+        <createIndex indexName="idx_events_created_by" tableName="events">
+            <column name="created_by"/>
+        </createIndex>
+
+        <createIndex indexName="idx_tickets_event" tableName="tickets">
+            <column name="event_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_tickets_user" tableName="tickets">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_tickets_status" tableName="tickets">
+            <column name="ticket_status"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

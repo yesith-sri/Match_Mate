@@ -7,31 +7,83 @@ spring:
     username: postgres
     password: yesithsri
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
 
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: none  # ✅ Keep as 'none' since using Liquibase
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        jdbc:
+          fetch_size: 50
+          batch_size: 10
+        order_inserts: true
+        order_updates: true
     show-sql: true
+    open-in-view: false
 
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
+    liquibase-schema: public
+
+  jackson:
+    serialization:
+#      write-dates-as-timestamps: false
+      indent-output: true
+    default-property-inclusion: non_null
+    timezone: UTC
 
 jwt:
   secret: matchmate-super-secret-jwt-key-2024-production-minimum-64-characters-required-for-hs512-algorithm-security
   expiration: 86400000
 
-
 server:
   port: 8080
   servlet:
     context-path: /api
+  error:
+    include:
+      message: always
+      exception: true
+      binding-errors: always
+      stacktrace: always
 
 logging:
   level:
     root: INFO
     com.matchmate: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.liquibase: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+
+app:
+  max-upload-size: 10MB
+  allowed-file-types: jpg,jpeg,png,gif,pdf
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics"
+  endpoint:
+    health:
+      show-details: always
