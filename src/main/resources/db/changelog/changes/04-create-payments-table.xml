@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="create-payments-table" author="matchmate-team">
+
+        <createSequence sequenceName="payments_payment_id_seq" startValue="1" incrementBy="1"/>
+
+        <createTable tableName="payments">
+
+            <column name="payment_id" type="BIGINT" defaultValueSequenceNext="payments_payment_id_seq">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="booking_id" type="BIGINT">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="uk_payments_booking"
+                             foreignKeyName="fk_payments_booking"
+                             references="bookings(booking_id)"/>
+            </column>
+
+            <column name="order_id" type="VARCHAR(50)">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="uk_payments_order_id"/>
+            </column>
+
+            <column name="payhere_payment_id" type="VARCHAR(100)"/>
+
+            <column name="amount" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="currency" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="hash" type="VARCHAR(255)"/>
+
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="updated_at" type="TIMESTAMP"/>
+
+        </createTable>
+    </changeSet>
+
+    <changeSet id="create-payments-indexes" author="matchmate-team">
+
+        <createIndex indexName="idx_payments_booking_id" tableName="payments">
+            <column name="booking_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_payments_order_id" tableName="payments">
+            <column name="order_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_payments_status" tableName="payments">
+            <column name="status"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>
