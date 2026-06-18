@@ -61,6 +61,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
 
+                        // PayHere callback — must be public, PayHere server has no JWT
+                        .requestMatchers("/api/payments/callback").permitAll()
+
+
                         // Actuator endpoints
                         .requestMatchers("/actuator/**").permitAll()
 
