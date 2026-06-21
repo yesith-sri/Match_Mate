@@ -60,7 +60,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         // Avoid duplicate payment records
-        paymentRepository.findByBookingId(booking.getId()).ifPresent(p -> {
+        paymentRepository.findByBooking_Id(booking.getId()).ifPresent(p -> {
             if (p.getStatus() == PaymentStatus.COMPLETED) {
                 throw new RuntimeException("Payment already completed for this booking");
             }
@@ -124,7 +124,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResponse getPaymentByBookingId(Long bookingId) {
-        Payment payment = paymentRepository.findByBookingId(bookingId)
+        Payment payment = paymentRepository.findByBooking_Id(bookingId)
                 .orElseThrow(() -> new RuntimeException("Payment not found for booking: " + bookingId));
 
         return new PaymentResponse(

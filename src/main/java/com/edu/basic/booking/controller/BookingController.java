@@ -2,8 +2,8 @@
 package com.edu.basic.booking.controller;
 import com.edu.basic.booking.dto.request.BookingRequest;
 import com.edu.basic.booking.dto.response.BookingResponse;
-import com.edu.basic.booking.dto.response.EventAvailabilityResponse;
 import com.edu.basic.booking.service.BookingService;
+import com.edu.basic.event.dtos.EventResponseDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,7 +48,7 @@ public class BookingController {
     }
 
     @GetMapping("/event/{eventId}/availability")
-    public ResponseEntity<EventAvailabilityResponse> getEventAvailability(
+    public ResponseEntity<EventResponseDTO> getEventAvailability(
             @PathVariable Long eventId) {
         return ResponseEntity.ok(bookingService.getEventAvailability(eventId));
     }
