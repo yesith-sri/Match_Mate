@@ -20,6 +20,7 @@ public class EventResponseDTO {
 
     private String eventName;
 
+    // FIXED: Changed "descripyes" back to "description"
     private String description;
 
     private EventType eventType;
@@ -60,4 +61,13 @@ public class EventResponseDTO {
     private Boolean isEventStarted;
 
     private Boolean isEventEnded;
+
+    // --- ADDED: Merged availability fields ---
+    private Integer confirmedMaleCount;
+
+    private Integer confirmedFemaleCount;
+
+    private Integer maleLimit;
+
+    private Integer femaleLimit;
 }

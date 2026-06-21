@@ -5,6 +5,7 @@ import com.edu.basic.event.dtos.EventRequestDTO;
 import com.edu.basic.event.dtos.EventResponseDTO;
 import com.edu.basic.event.dtos.EventUpdateDTO;
 import com.edu.basic.event.enums.EventStatus;
+import com.edu.basic.event.service.impl.EventServiceImpl;
 import com.edu.basic.exception.UnauthorizedException;
 import com.edu.basic.event.service.EventService;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +28,8 @@ public class EventController {
 
     @Autowired
     private EventService eventService;
+    @Autowired
+    private EventServiceImpl eventServiceImpl;
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<EventResponseDTO>> createEvent(
@@ -312,6 +316,15 @@ public class EventController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error fetching events", HttpStatus.INTERNAL_SERVER_ERROR.value()));
         }
+    }
+
+    @PutMapping("/{eventId}/limits")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EventResponseDTO> updateLimits(
+            @PathVariable Long eventId,
+            @RequestParam int maleLimit,
+            @RequestParam int femaleLimit) {
+        return ResponseEntity.ok(eventServiceImpl.updateGenderLimits(eventId, maleLimit, femaleLimit));
     }
     
     

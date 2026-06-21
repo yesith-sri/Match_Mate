@@ -1,5 +1,6 @@
 package com.edu.basic.event.entity;
 
+import com.edu.basic.booking.entity.Booking;
 import com.edu.basic.event.enums.EventStatus;
 import com.edu.basic.event.enums.EventType;
 import com.edu.basic.user.entity.User;
@@ -86,5 +87,11 @@ public class Event {
     private User createdBy;
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<com.edu.basic.event.entity.Ticket> tickets = new HashSet<>();
+    private Set<Booking> bookings = new HashSet<>();
+
+    @Column(name = "male_limit", nullable = false)
+    private int maleLimit = 15;
+
+    @Column(name = "female_limit", nullable = false)
+    private int femaleLimit = 15;
 }

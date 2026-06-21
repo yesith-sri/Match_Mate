@@ -7,7 +7,6 @@
 
     <changeSet id="001-create-event-tables" author="team">
 
-        <!-- Create Events Table -->
         <createTable tableName="events">
             <column name="event_id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
@@ -50,6 +49,15 @@
             </column>
             <column name="image_url" type="VARCHAR(500)"/>
             <column name="special_instructions" type="VARCHAR(1000)"/>
+
+            <column name="male_limit" type="INT" defaultValueNumeric="15">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="female_limit" type="INT" defaultValueNumeric="15">
+                <constraints nullable="false"/>
+            </column>
+
             <column name="created_at" type="TIMESTAMP" defaultValueDate="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
@@ -61,7 +69,6 @@
             </column>
         </createTable>
 
-        <!-- Create Tickets Table -->
         <createTable tableName="tickets">
             <column name="ticket_id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
@@ -89,7 +96,6 @@
             <column name="cancellation_reason" type="VARCHAR(500)"/>
         </createTable>
 
-        <!-- Create Indexes -->
         <createIndex indexName="idx_events_status" tableName="events">
             <column name="event_status"/>
         </createIndex>

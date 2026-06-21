@@ -2,18 +2,25 @@ package com.edu.basic.booking.entity;
 
 import com.edu.basic.booking.enums.BookingStatus;
 import com.edu.basic.entity.BaseEntity;
+import com.edu.basic.event.entity.Event;
 import com.edu.basic.user.entity.User;
 import jakarta.persistence.*;
-import jdk.jfr.Event;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Date;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 
 @Entity
 @Table
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class Booking extends BaseEntity<Long> {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -21,21 +28,18 @@ public class Booking extends BaseEntity<Long> {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id",nullable = false)
+    @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    @Column(name = "booking_date",nullable = false)
-    private Date bookingDate;
+    @Column(name = "booking_date", nullable = false)
+    private LocalDate bookingDate;
 
-    @Column(name ="booking time", nullable = false)
-    private Date bookingTime;
+    @Column(name = "booking_time", nullable = false)
+    private LocalTime bookingTime;
+
+
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status;
-
-    }
-
-
-
 }

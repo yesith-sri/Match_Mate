@@ -1,5 +1,7 @@
-package com.edu.basic.event.service;
+package com.edu.basic.event.service.impl;
 
+import com.edu.basic.booking.enums.BookingStatus;
+import com.edu.basic.booking.repositary.BookingRepository;
 import com.edu.basic.event.dtos.EventRequestDTO;
 import com.edu.basic.event.dtos.EventResponseDTO;
 import com.edu.basic.event.dtos.EventUpdateDTO;
@@ -7,9 +9,11 @@ import com.edu.basic.event.entity.Event;
 import com.edu.basic.event.enums.EventStatus;
 import com.edu.basic.event.enums.EventType;
 import com.edu.basic.event.repository.EventRepository;
+import com.edu.basic.event.service.EventService;
 import com.edu.basic.exception.ResourceNotFoundException;
 import com.edu.basic.exception.UnauthorizedException;
 import com.edu.basic.user.entity.User;
+import com.edu.basic.user.enums.UserGender;
 import com.edu.basic.user.repositary.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +34,8 @@ public class EventServiceImpl implements EventService {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private BookingRepository bookingRepository;
 
     @Override
     public EventResponseDTO createEvent(EventRequestDTO eventRequestDTO, Long userId) {
@@ -285,5 +291,47 @@ public class EventServiceImpl implements EventService {
                 .isEventStarted(isEventStarted)
                 .isEventEnded(isEventEnded)
                 .build();
+    }
+
+
+    @Transactional
+    public EventResponseDTO updateGenderLimits(Long eventId, int maleLimit, int femaleLimit) {
+
+        // 1. Prevent negative numbers
+        if (maleLimit < 0 || femaleLimit < 0) {
+            throw new IllegalArgumentException("Capacity limits cannot be negative.");
+        }
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        // 2. Count currently confirmed bookings
+        long confirmedMales = bookingRepository.countByEventAndGenderAndStatus(
+                eventId, UserGender.MALE, BookingStatus.CONFIRMED);
+
+        long confirmedFemales = bookingRepository.countByEventAndGenderAndStatus(
+                eventId, UserGender.FEMALE, BookingStatus.CONFIRMED);
+
+        // 3. Prevent lowering limits below confirmed bookings
+        if (maleLimit < confirmedMales) {
+            throw new IllegalArgumentException(
+                    "Cannot set male limit to " + maleLimit + " because there are already " + confirmedMales + " confirmed male bookings.");
+        }
+
+        if (femaleLimit < confirmedFemales) {
+            throw new IllegalArgumentException(
+                    "Cannot set female limit to " + femaleLimit + " because there are already " + confirmedFemales + " confirmed female bookings.");
+        }
+
+        // 4. Safe to update the limits
+        event.setMaleLimit(maleLimit);
+        event.setFemaleLimit(femaleLimit);
+
+        // (Optional) If your totalSeats is just male + female, update it here!
+        event.setTotalSeats(maleLimit + femaleLimit);
+
+        Event updatedEvent = eventRepository.save(event);
+
+        return mapEventToResponseDTO(updatedEvent);
     }
 }

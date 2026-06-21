@@ -6,6 +6,7 @@ package com.edu.basic.booking.service;
 import com.edu.basic.booking.dto.request.BookingRequest;
 import com.edu.basic.booking.dto.response.BookingResponse;
 import com.edu.basic.booking.dto.response.EventAvailabilityResponse;
+import com.edu.basic.event.dtos.EventResponseDTO;
 
 import java.util.List;
 
@@ -21,7 +22,8 @@ public interface BookingService {
 
     BookingResponse cancelBooking(Long bookingId, Long userId);
 
-    EventAvailabilityResponse getEventAvailability(Long eventId);
+
+    EventResponseDTO getEventAvailability(Long eventId);
 
     BookingResponse confirmBooking(Long bookingId);
 }
