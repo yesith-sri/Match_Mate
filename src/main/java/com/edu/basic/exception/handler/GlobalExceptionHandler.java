@@ -40,18 +40,6 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(exception.getErrorCode(), sourceMessage, LocalDateTime.now()));
     }
 
-    /**
-     * Handle ALL unhandled / unknown exceptions
-     */
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Object> handleAllOtherExceptions(Exception exception) {
-        log.error("Unhandled exception occurred:", exception);
-
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(ErrorCode.INTERNAL_ERROR,
-                        "An unexpected error occurred", LocalDateTime.now()));
-    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<String>> handleResourceNotFoundException(

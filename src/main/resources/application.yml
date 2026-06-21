@@ -2,6 +2,3 @@ spring:
   profiles:
     active: dev
 
-    payhere:
-      merchant-id: 1236193
-      merchant-secret: ${PAYHERE_SECRET:MzgyNzMxNjIyNzI1MzY1MTkwODU4NTczOTI2MjgxODEwODUwMjcx}
