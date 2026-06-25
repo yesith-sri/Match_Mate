@@ -1,6 +1,9 @@
 package com.edu.basic.user.service.impl;
 
 import com.edu.basic.Security.JwtProvider;
+import com.edu.basic.exception.BusinessException;
+import com.edu.basic.exception.ErrorCode;
+import com.edu.basic.exception.UnauthorizedException;
 import com.edu.basic.user.dto.request.LoginRequest;
 import com.edu.basic.user.dto.request.RegisterRequest;
 import com.edu.basic.user.dto.response.AuthResponse;
@@ -27,13 +30,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ResponseEntity<AuthResponse> register(RegisterRequest request) {
 
-        // Check if email already exists
         if (emailExists(request.getEmail())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new AuthResponse(null, null, "Email already registered"));
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS,
+                    "Email already registered: " + request.getEmail());
         }
 
-        // Create new user
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -48,61 +49,33 @@ public class AuthServiceImpl implements AuthService {
         user.setIsActive(true);
         user.setIsEmailVerified(false);
 
-        // Save user to database
         User savedUser = userRepository.save(user);
-
-        // Generate JWT token
         String token = jwtProvider.generateToken(savedUser.getId(), savedUser.getEmail());
-
-        // Map to response
         UserResponse userResponse = userMapper.mapEntityToResponse(savedUser);
 
-        AuthResponse authResponse = new AuthResponse(
-                token,
-                userResponse,
-                "User registered successfully"
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new AuthResponse(token, userResponse, "User registered successfully"));
     }
 
     @Override
     public ResponseEntity<AuthResponse> login(LoginRequest request) {
 
-        // Find user by email
         User user = userRepository.findByEmail(request.getEmail())
-                .orElse(null);
+                .orElseThrow(() -> new UnauthorizedException(
+                        ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
 
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponse(null, null, "Invalid email or password"));
-        }
-
-        // Check if password matches
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponse(null, null, "Invalid email or password"));
+            throw new UnauthorizedException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password");
         }
 
-        // Check if user is active
         if (!user.getIsActive()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponse(null, null, "User account is inactive"));
+            throw new UnauthorizedException(ErrorCode.USER_DISABLED, "User account is inactive");
         }
 
-        // Generate JWT token
         String token = jwtProvider.generateToken(user.getId(), user.getEmail());
-
-        // Map to response
         UserResponse userResponse = userMapper.mapEntityToResponse(user);
 
-        AuthResponse authResponse = new AuthResponse(
-                token,
-                userResponse,
-                "Login successful"
-        );
-
-        return ResponseEntity.ok(authResponse);
+        return ResponseEntity.ok(new AuthResponse(token, userResponse, "Login successful"));
     }
 
     @Override

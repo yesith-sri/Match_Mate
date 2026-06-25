@@ -1,11 +1,9 @@
 package com.edu.basic.exception.handler;
 
-import com.edu.basic.event.dtos.ApiResponse;
 import com.edu.basic.exception.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,75 +23,89 @@ public class GlobalExceptionHandler {
 
     private final MessageSource messageSource;
 
-    /**
-     * Handle custom CommonException
-     */
+    // ── i18n-based exceptions ──────────────────────────────
     @ExceptionHandler(CommonException.class)
-    public ResponseEntity<Object> handleCommonException(CommonException exception) {
-        log.error("Handled CommonException: errorCode={}, messageKey={}",
-                exception.getErrorCode(), exception.getMessageKey(), exception);
+    public ResponseEntity<ErrorResponse> handleCommonException(CommonException ex) {
+        log.error("CommonException: errorCode={}, messageKey={}", ex.getErrorCode(), ex.getMessageKey(), ex);
 
-        String sourceMessage = messageSource.getMessage(
-                exception.getMessageKey(), exception.getArgs(), Locale.getDefault());
+        String message = messageSource.getMessage(
+                ex.getMessageKey(), ex.getArgs(), Locale.getDefault());
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(exception.getErrorCode(), sourceMessage, LocalDateTime.now()));
+        return build(ex.getErrorCode(), message, null);
     }
 
-
+    // ── Domain exceptions (all extend BaseException) ───────
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<String>> handleResourceNotFoundException(
-            ResourceNotFoundException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
         log.error("Resource not found: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage(), HttpStatus.NOT_FOUND.value()));
+        return build(ex.getErrorCode(), ex.getMessage(), null);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ApiResponse<String>> handleUnauthorizedException(
-            UnauthorizedException ex, WebRequest request) {
-        log.error("Unauthorized access: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ex.getMessage(), HttpStatus.FORBIDDEN.value()));
+    public ResponseEntity<ErrorResponse> handleUnauthorizedException(UnauthorizedException ex) {
+        log.error("Unauthorized: {}", ex.getMessage());
+        return build(ex.getErrorCode(), ex.getMessage(), null);
     }
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<String>> handleBusinessException(
-            BusinessException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
         log.error("Business error: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        return build(ex.getErrorCode(), ex.getMessage(), null);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(
-            MethodArgumentNotValidException ex) {
-        log.error("Validation error occurred");
-        Map<String, String> errors = new HashMap<>();
+    @ExceptionHandler(BookingLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleBookingLimitExceeded(BookingLimitExceededException ex) {
+        log.error("Booking limit exceeded: {}", ex.getMessage());
+        return build(ex.getErrorCode(), ex.getMessage(), null);
+    }
 
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+    // ── Validation ─────────────────────────────────────────
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
+        log.error("Validation failed");
+
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String field = ((FieldError) error).getField();
+            fieldErrors.put(field, error.getDefaultMessage());
         });
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("Validation failed", HttpStatus.BAD_REQUEST.value()));
+        ErrorResponse response = ErrorResponse.builder()
+                .errorCode(ErrorCode.INVALID_REQUEST.name())
+                .status(ErrorCode.INVALID_REQUEST.getHttpStatus().value())
+                .message("Validation failed")
+                .timestamp(LocalDateTime.now())
+                .validationErrors(fieldErrors)
+                .build();
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_REQUEST.getHttpStatus())
+                .body(response);
     }
 
+    // ── Fallback ───────────────────────────────────────────
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<String>> handleIllegalArgumentException(
-            IllegalArgumentException ex, WebRequest request) {
-        log.error("Invalid argument: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        log.error("Illegal argument: {}", ex.getMessage());
+        return build(ErrorCode.INVALID_REQUEST, ex.getMessage(), null);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<String>> handleGlobalException(
-            Exception ex, WebRequest request) {
-        log.error("Unexpected error: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR.value()));
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) {
+        log.error("Unexpected error at {}: {}", request.getDescription(false), ex.getMessage(), ex);
+        return build(ErrorCode.INTERNAL_ERROR, "An unexpected error occurred", null);
+    }
+
+    // ── Builder helper ─────────────────────────────────────
+    private ResponseEntity<ErrorResponse> build(ErrorCode errorCode, String message, Map<String, String> validationErrors) {
+        ErrorResponse response = ErrorResponse.builder()
+                .errorCode(errorCode.name())
+                .status(errorCode.getHttpStatus().value())
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .validationErrors(validationErrors)
+                .build();
+
+        return ResponseEntity.status(errorCode.getHttpStatus()).body(response);
     }
 }

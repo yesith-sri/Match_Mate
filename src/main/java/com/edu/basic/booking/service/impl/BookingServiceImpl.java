@@ -4,20 +4,21 @@ import com.edu.basic.booking.dto.request.BookingRequest;
 import com.edu.basic.booking.dto.response.BookingResponse;
 import com.edu.basic.booking.entity.Booking;
 import com.edu.basic.booking.enums.BookingStatus;
-import com.edu.basic.booking.exception.BookingLimitExceededException;
 import com.edu.basic.booking.mapper.BookingMapper;
 import com.edu.basic.booking.repositary.BookingRepository;
 import com.edu.basic.booking.service.BookingService;
-
 import com.edu.basic.event.dtos.EventResponseDTO;
 import com.edu.basic.event.entity.Event;
 import com.edu.basic.event.repository.EventRepository;
+import com.edu.basic.exception.BookingLimitExceededException;
+import com.edu.basic.exception.BusinessException;
+import com.edu.basic.exception.ErrorCode;
+import com.edu.basic.exception.ResourceNotFoundException;
 import com.edu.basic.user.entity.User;
 import com.edu.basic.user.enums.UserGender;
 import com.edu.basic.user.repositary.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,22 +46,23 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponse createBooking(Long userId, BookingRequest request) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.USER_NOT_FOUND, "User not found with id: " + userId));
 
         Event event = eventRepository.findById(request.getEventId())
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + request.getEventId()));
 
         boolean alreadyBooked = bookingRepository.existsByUserIdAndEvent_EventIdAndStatusNot(
                 userId, request.getEventId(), BookingStatus.CANCELLED);
         if (alreadyBooked) {
-            throw new RuntimeException("You have already booked this event");
+            throw new BusinessException(ErrorCode.DUPLICATE_BOOKING,
+                    "You have already booked this event");
         }
 
         UserGender gender = UserGender.valueOf(user.getGender().toUpperCase());
-
         long currentCount = bookingRepository.countByEventAndGenderAndStatus(
                 request.getEventId(), gender, BookingStatus.CONFIRMED);
-
         int limit = (gender == UserGender.MALE) ? event.getMaleLimit() : event.getFemaleLimit();
 
         if (currentCount >= limit) {
@@ -82,7 +84,8 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingResponse confirmBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.BOOKING_NOT_FOUND, "Booking not found with id: " + bookingId));
 
         if (booking.getStatus() == BookingStatus.CONFIRMED) {
             return bookingMapper.toResponse(booking);
@@ -92,19 +95,12 @@ public class BookingServiceImpl implements BookingService {
         UserGender gender = UserGender.valueOf(booking.getUser().getGender().toUpperCase());
         long currentCount = bookingRepository.countByEventAndGenderAndStatus(
                 event.getEventId(), gender, BookingStatus.CONFIRMED);
-
         int limit = (gender == UserGender.MALE) ? event.getMaleLimit() : event.getFemaleLimit();
 
-        // --- THIS IS THE PART YOU CHANGE ---
         if (currentCount >= limit) {
-            // 1. Change the status to CANCELLED
             booking.setStatus(BookingStatus.CANCELLED);
-
-            // 2. Save it to the database and IMMEDIATELY return the response
-            // (We removed the 'throw new BookingLimitExceededException' from here)
             return bookingMapper.toResponse(bookingRepository.save(booking));
         }
-        // -----------------------------------
 
         booking.setStatus(BookingStatus.CONFIRMED);
         return bookingMapper.toResponse(bookingRepository.save(booking));
@@ -113,7 +109,9 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingResponse getBookingById(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.BOOKING_NOT_FOUND, "Booking not found with id: " + bookingId));
+
         return bookingMapper.toResponse(booking);
     }
 
@@ -137,7 +135,13 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingResponse cancelBooking(Long bookingId, Long userId) {
         Booking booking = bookingRepository.findByIdAndUserId(bookingId, userId)
-                .orElseThrow(() -> new RuntimeException("Booking not found for this user"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.BOOKING_NOT_FOUND, "Booking not found for this user"));
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.BOOKING_ALREADY_CANCELLED,
+                    "Booking is already cancelled");
+        }
 
         booking.setStatus(BookingStatus.CANCELLED);
         return bookingMapper.toResponse(bookingRepository.save(booking));
@@ -146,12 +150,13 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public EventResponseDTO getEventAvailability(Long eventId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
-
-        int maleCount = (int) bookingRepository.countByEventAndGenderAndStatus(eventId, UserGender.MALE, BookingStatus.CONFIRMED);
-        int femaleCount = (int) bookingRepository.countByEventAndGenderAndStatus(eventId, UserGender.FEMALE, BookingStatus.CONFIRMED);
-
+        int maleCount = (int) bookingRepository.countByEventAndGenderAndStatus(
+                eventId, UserGender.MALE, BookingStatus.CONFIRMED);
+        int femaleCount = (int) bookingRepository.countByEventAndGenderAndStatus(
+                eventId, UserGender.FEMALE, BookingStatus.CONFIRMED);
 
         return EventResponseDTO.builder()
                 .eventId(event.getEventId())
@@ -160,7 +165,6 @@ public class BookingServiceImpl implements BookingService {
                 .confirmedFemaleCount(femaleCount)
                 .maleLimit(event.getMaleLimit())
                 .femaleLimit(event.getFemaleLimit())
-
                 .build();
     }
 }

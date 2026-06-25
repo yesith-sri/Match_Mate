@@ -4,6 +4,10 @@ import com.edu.basic.booking.entity.Booking;
 import com.edu.basic.booking.enums.BookingStatus;
 import com.edu.basic.booking.repositary.BookingRepository;
 import com.edu.basic.booking.service.BookingService;
+import com.edu.basic.exception.BusinessException;
+import com.edu.basic.exception.ErrorCode;
+import com.edu.basic.exception.ResourceNotFoundException;
+import com.edu.basic.exception.UnauthorizedException;
 import com.edu.basic.payment.dto.request.PaymentRequest;
 import com.edu.basic.payment.dto.response.PaymentHashResponse;
 import com.edu.basic.payment.dto.response.PaymentResponse;
@@ -47,29 +51,29 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentHashResponse initiatePayment(Long userId, PaymentRequest request) {
 
         Booking booking = bookingRepository.findById(request.getBookingId())
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.BOOKING_NOT_FOUND, "Booking not found with id: " + request.getBookingId()));
 
-        // Only the booking owner can pay
         if (!booking.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Unauthorized");
+            throw new UnauthorizedException(ErrorCode.ACCESS_DENIED,
+                    "You are not authorized to pay for this booking");
         }
 
-        // Booking must be PENDING to initiate payment
         if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new RuntimeException("Booking is not in PENDING state");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Booking is not in PENDING state");
         }
 
-        // Avoid duplicate payment records
         paymentRepository.findByBooking_Id(booking.getId()).ifPresent(p -> {
             if (p.getStatus() == PaymentStatus.COMPLETED) {
-                throw new RuntimeException("Payment already completed for this booking");
+                throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED,
+                        "Payment already completed for this booking");
             }
         });
 
         String orderId = "MM-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         String formattedAmount = new BigDecimal(request.getAmount())
                 .setScale(2, RoundingMode.HALF_UP).toPlainString();
-
         String hash = generateHash(merchantId, orderId, formattedAmount, "LKR");
 
         Payment payment = new Payment();
@@ -90,32 +94,27 @@ public class PaymentServiceImpl implements PaymentService {
                                String payhereAmount, String payhereCurrency,
                                String statusCode, String md5sig) {
 
-        // Step 1: Verify MD5 signature — confirms request is genuinely from PayHere
-        // Formula: md5( merchant_id + order_id + amount + currency + status_code + md5(merchant_secret).toUpperCase() )
         String expectedSig = generateCallbackHash(merchantId, orderId,
                 payhereAmount, payhereCurrency, statusCode);
 
         if (!expectedSig.equals(md5sig)) {
-            throw new RuntimeException("Invalid MD5 signature — possible fraud attempt");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Invalid MD5 signature — possible fraud attempt");
         }
 
         Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Payment record not found for order: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.PAYMENT_NOT_FOUND, "Payment not found for order: " + orderId));
 
-        // Avoid processing the same callback twice
         if (payment.getStatus() == PaymentStatus.COMPLETED) {
             return;
         }
 
-        // Step 2: status_code 2 = success, -1 = cancelled, -2 = failed, -3 = chargebacked
         if ("2".equals(statusCode)) {
             payment.setPayherePaymentId(payherePaymentId);
             payment.setStatus(PaymentStatus.COMPLETED);
             paymentRepository.save(payment);
-
-            // Step 3: Confirm the booking
             bookingService.confirmBooking(payment.getBooking().getId());
-
         } else {
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
@@ -125,7 +124,8 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public PaymentResponse getPaymentByBookingId(Long bookingId) {
         Payment payment = paymentRepository.findByBooking_Id(bookingId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for booking: " + bookingId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.PAYMENT_NOT_FOUND, "Payment not found for booking: " + bookingId));
 
         return new PaymentResponse(
                 payment.getId(),
@@ -138,20 +138,15 @@ public class PaymentServiceImpl implements PaymentService {
         );
     }
 
-    // Hash for initiating payment (sent to frontend for PayHere popup)
-    private String generateHash(String merchantId, String orderId,
-                                String amount, String currency) {
+    private String generateHash(String merchantId, String orderId, String amount, String currency) {
         String secretHash = md5(merchantSecret).toUpperCase();
-        String raw = merchantId + orderId + amount + currency + secretHash;
-        return md5(raw).toUpperCase();
+        return md5(merchantId + orderId + amount + currency + secretHash).toUpperCase();
     }
 
-    // Hash for verifying PayHere callback
     private String generateCallbackHash(String merchantId, String orderId,
                                         String amount, String currency, String statusCode) {
         String secretHash = md5(merchantSecret).toUpperCase();
-        String raw = merchantId + orderId + amount + currency + statusCode + secretHash;
-        return md5(raw).toUpperCase();
+        return md5(merchantId + orderId + amount + currency + statusCode + secretHash).toUpperCase();
     }
 
     private String md5(String input) {
@@ -159,12 +154,10 @@ public class PaymentServiceImpl implements PaymentService {
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] bytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b));
-            }
+            for (byte b : bytes) sb.append(String.format("%02x", b));
             return sb.toString();
         } catch (Exception e) {
-            throw new RuntimeException("MD5 hashing failed", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "MD5 hashing failed");
         }
     }
 }

@@ -8,8 +8,11 @@ import com.edu.basic.event.dtos.EventUpdateDTO;
 import com.edu.basic.event.entity.Event;
 import com.edu.basic.event.enums.EventStatus;
 import com.edu.basic.event.enums.EventType;
+import com.edu.basic.event.mapeer.EventMapper;
 import com.edu.basic.event.repository.EventRepository;
 import com.edu.basic.event.service.EventService;
+import com.edu.basic.exception.BusinessException;
+import com.edu.basic.exception.ErrorCode;
 import com.edu.basic.exception.ResourceNotFoundException;
 import com.edu.basic.exception.UnauthorizedException;
 import com.edu.basic.user.entity.User;
@@ -22,316 +25,212 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 @Service
 @Slf4j
 @Transactional
 public class EventServiceImpl implements EventService {
 
-    @Autowired
-    private EventRepository eventRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private BookingRepository bookingRepository;
+    @Autowired private EventRepository eventRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private BookingRepository bookingRepository;
+    @Autowired private EventMapper eventMapper;
 
     @Override
-    public EventResponseDTO createEvent(EventRequestDTO eventRequestDTO, Long userId) {
-        log.info("Creating event: {}", eventRequestDTO.getEventName());
+    public EventResponseDTO createEvent(EventRequestDTO dto, Long userId) {
+        log.info("Creating event: {}", dto.getEventName());
 
-        // Validate event dates
-        if (eventRequestDTO.getEventEndDate().isBefore(eventRequestDTO.getEventDate())) {
-            throw new IllegalArgumentException("Event end date must be after event start date");
+        if (dto.getEventEndDate().isBefore(dto.getEventDate())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Event end date must be after event start date");
         }
 
-        // Get user
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.USER_NOT_FOUND, "User not found with id: " + userId));
 
-        // Create event entity
         Event event = Event.builder()
-                .eventName(eventRequestDTO.getEventName())
-                .description(eventRequestDTO.getDescription())
-                .eventType(eventRequestDTO.getEventType())
+                .eventName(dto.getEventName())
+                .description(dto.getDescription())
+                .eventType(dto.getEventType())
                 .eventStatus(EventStatus.UPCOMING)
-                .eventDate(eventRequestDTO.getEventDate())
-                .eventEndDate(eventRequestDTO.getEventEndDate())
-                .location(eventRequestDTO.getLocation())
-                .latitude(eventRequestDTO.getLatitude())
-                .longitude(eventRequestDTO.getLongitude())
-                .ticketPrice(eventRequestDTO.getTicketPrice())
-                .totalSeats(eventRequestDTO.getTotalSeats())
-                .availableSeats(eventRequestDTO.getTotalSeats())
-                .imageUrl(eventRequestDTO.getImageUrl())
-                .specialInstructions(eventRequestDTO.getSpecialInstructions())
+                .eventDate(dto.getEventDate())
+                .eventEndDate(dto.getEventEndDate())
+                .location(dto.getLocation())
+                .latitude(dto.getLatitude())
+                .longitude(dto.getLongitude())
+                .ticketPrice(dto.getTicketPrice())
+                .totalSeats(dto.getTotalSeats())
+                .availableSeats(dto.getTotalSeats())
+                .imageUrl(dto.getImageUrl())
+                .specialInstructions(dto.getSpecialInstructions())
                 .createdBy(user)
                 .build();
 
-        Event savedEvent = eventRepository.save(event);
-        log.info("Event created successfully with ID: {}", savedEvent.getEventId());
-
-        return mapEventToResponseDTO(savedEvent);
+        Event saved = eventRepository.save(event);
+        log.info("Event created with ID: {}", saved.getEventId());
+        return eventMapper.mapToResponse(saved);
     }
 
     @Override
     public EventResponseDTO getEventById(Long eventId) {
-        log.info("Fetching event with ID: {}", eventId);
-
+        log.info("Fetching event: {}", eventId);
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event not found with ID: " + eventId));
-
-        return mapEventToResponseDTO(event);
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
+        return eventMapper.mapToResponse(event);
     }
 
     @Override
     public Page<EventResponseDTO> getAllEvents(Pageable pageable) {
-        log.info("Fetching all events with pagination");
-
-        return eventRepository.findAll(pageable)
-                .map(this::mapEventToResponseDTO);
+        return eventRepository.findAll(pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
     public Page<EventResponseDTO> getUpcomingEvents(Pageable pageable) {
-        log.info("Fetching upcoming events");
-
-        return eventRepository.findUpcomingEvents(pageable)
-                .map(this::mapEventToResponseDTO);
+        return eventRepository.findUpcomingEvents(pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
-    public Page<EventResponseDTO> getEventsByStatus(EventStatus eventStatus, Pageable pageable) {
-        log.info("Fetching events by status: {}", eventStatus);
-
-        return eventRepository.findByEventStatus(eventStatus, pageable)
-                .map(this::mapEventToResponseDTO);
+    public Page<EventResponseDTO> getEventsByStatus(EventStatus status, Pageable pageable) {
+        return eventRepository.findByEventStatus(status, pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
     public Page<EventResponseDTO> getEventsByType(String eventType, Pageable pageable) {
-        log.info("Fetching events by type: {}", eventType);
-
         try {
             EventType type = EventType.valueOf(eventType.toUpperCase());
-            return eventRepository.findByEventType(type, pageable)
-                    .map(this::mapEventToResponseDTO);
+            return eventRepository.findByEventType(type, pageable).map(eventMapper::mapToResponse);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid event type: " + eventType);
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Invalid event type: " + eventType);
         }
     }
 
     @Override
-    public EventResponseDTO updateEvent(Long eventId, EventUpdateDTO eventUpdateDTO, Long userId) {
-        log.info("Updating event with ID: {}", eventId);
+    public EventResponseDTO updateEvent(Long eventId, EventUpdateDTO dto, Long userId) {
+        log.info("Updating event: {}", eventId);
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
-        // Check authorization
         if (!event.getCreatedBy().getId().equals(userId)) {
-            throw new UnauthorizedException("You are not authorized to update this event");
+            throw new UnauthorizedException(ErrorCode.ACCESS_DENIED,
+                    "You are not authorized to update this event");
         }
 
-        // Validate event dates if both are provided
-        if (eventUpdateDTO.getEventDate() != null && eventUpdateDTO.getEventEndDate() != null) {
-            if (eventUpdateDTO.getEventEndDate().isBefore(eventUpdateDTO.getEventDate())) {
-                throw new IllegalArgumentException("Event end date must be after event start date");
-            }
+        if (dto.getEventDate() != null && dto.getEventEndDate() != null
+                && dto.getEventEndDate().isBefore(dto.getEventDate())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Event end date must be after event start date");
         }
 
-        // Update fields
-        if (eventUpdateDTO.getEventName() != null) {
-            event.setEventName(eventUpdateDTO.getEventName());
-        }
-        if (eventUpdateDTO.getDescription() != null) {
-            event.setDescription(eventUpdateDTO.getDescription());
-        }
-        if (eventUpdateDTO.getEventType() != null) {
-            event.setEventType(eventUpdateDTO.getEventType());
-        }
-        if (eventUpdateDTO.getEventDate() != null) {
-            event.setEventDate(eventUpdateDTO.getEventDate());
-        }
-        if (eventUpdateDTO.getEventEndDate() != null) {
-            event.setEventEndDate(eventUpdateDTO.getEventEndDate());
-        }
-        if (eventUpdateDTO.getLocation() != null) {
-            event.setLocation(eventUpdateDTO.getLocation());
-        }
-        if (eventUpdateDTO.getLatitude() != null) {
-            event.setLatitude(eventUpdateDTO.getLatitude());
-        }
-        if (eventUpdateDTO.getLongitude() != null) {
-            event.setLongitude(eventUpdateDTO.getLongitude());
-        }
-        if (eventUpdateDTO.getTicketPrice() != null) {
-            event.setTicketPrice(eventUpdateDTO.getTicketPrice());
-        }
-        if (eventUpdateDTO.getEventStatus() != null) {
-            event.setEventStatus(eventUpdateDTO.getEventStatus());
-        }
-        if (eventUpdateDTO.getImageUrl() != null) {
-            event.setImageUrl(eventUpdateDTO.getImageUrl());
-        }
-        if (eventUpdateDTO.getSpecialInstructions() != null) {
-            event.setSpecialInstructions(eventUpdateDTO.getSpecialInstructions());
-        }
+        if (dto.getEventName() != null)          event.setEventName(dto.getEventName());
+        if (dto.getDescription() != null)         event.setDescription(dto.getDescription());
+        if (dto.getEventType() != null)           event.setEventType(dto.getEventType());
+        if (dto.getEventDate() != null)           event.setEventDate(dto.getEventDate());
+        if (dto.getEventEndDate() != null)        event.setEventEndDate(dto.getEventEndDate());
+        if (dto.getLocation() != null)            event.setLocation(dto.getLocation());
+        if (dto.getLatitude() != null)            event.setLatitude(dto.getLatitude());
+        if (dto.getLongitude() != null)           event.setLongitude(dto.getLongitude());
+        if (dto.getTicketPrice() != null)         event.setTicketPrice(dto.getTicketPrice());
+        if (dto.getEventStatus() != null)         event.setEventStatus(dto.getEventStatus());
+        if (dto.getImageUrl() != null)            event.setImageUrl(dto.getImageUrl());
+        if (dto.getSpecialInstructions() != null) event.setSpecialInstructions(dto.getSpecialInstructions());
 
-        Event updatedEvent = eventRepository.save(event);
-        log.info("Event updated successfully");
-
-        return mapEventToResponseDTO(updatedEvent);
+        return eventMapper.mapToResponse(eventRepository.save(event));
     }
 
     @Override
     public void deleteEvent(Long eventId, Long userId) {
-        log.info("Deleting event with ID: {}", eventId);
+        log.info("Deleting event: {}", eventId);
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
-        // Check authorization
         if (!event.getCreatedBy().getId().equals(userId)) {
-            throw new UnauthorizedException("You are not authorized to delete this event");
+            throw new UnauthorizedException(ErrorCode.ACCESS_DENIED,
+                    "You are not authorized to delete this event");
         }
 
         eventRepository.delete(event);
-        log.info("Event deleted successfully");
     }
 
     @Override
     public Page<EventResponseDTO> searchEvents(String keyword, Pageable pageable) {
-        log.info("Searching events with keyword: {}", keyword);
-
-        return eventRepository.searchByEventName(keyword, pageable)
-                .map(this::mapEventToResponseDTO);
+        return eventRepository.searchByEventName(keyword, pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
     public Page<EventResponseDTO> getEventsByCreator(Long userId, Pageable pageable) {
-        log.info("Fetching events created by user: {}", userId);
-
-        return eventRepository.findEventsByCreator(userId, pageable)
-                .map(this::mapEventToResponseDTO);
+        return eventRepository.findEventsByCreator(userId, pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
     public Page<EventResponseDTO> getEventsByLocation(String location, Pageable pageable) {
-        log.info("Fetching events by location: {}", location);
-
-        return eventRepository.findByLocation(location, pageable)
-                .map(this::mapEventToResponseDTO);
+        return eventRepository.findByLocation(location, pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
     public Page<EventResponseDTO> getAvailableEvents(Pageable pageable) {
-        log.info("Fetching available events");
-
-        return eventRepository.findEventsWithAvailableSeats(pageable)
-                .map(this::mapEventToResponseDTO);
+        return eventRepository.findEventsWithAvailableSeats(pageable).map(eventMapper::mapToResponse);
     }
 
     @Override
-    public EventResponseDTO updateEventStatus(Long eventId, EventStatus eventStatus, Long userId) {
-        log.info("Updating event status: {}, Event ID: {}", eventStatus, eventId);
-
+    public EventResponseDTO updateEventStatus(Long eventId, EventStatus status, Long userId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
-        // Check authorization
         if (!event.getCreatedBy().getId().equals(userId)) {
-            throw new UnauthorizedException("You are not authorized to update this event status");
+            throw new UnauthorizedException(ErrorCode.ACCESS_DENIED,
+                    "You are not authorized to update this event status");
         }
 
-        event.setEventStatus(eventStatus);
-        Event updatedEvent = eventRepository.save(event);
-
-        return mapEventToResponseDTO(updatedEvent);
+        event.setEventStatus(status);
+        return eventMapper.mapToResponse(eventRepository.save(event));
     }
 
     @Override
-    public Page<EventResponseDTO> getEventsNearLocation(Double latitude, Double longitude, Double radius, Pageable pageable) {
-        log.info("Fetching events near location: latitude={}, longitude={}, radius={}", latitude, longitude, radius);
-
+    public Page<EventResponseDTO> getEventsNearLocation(Double latitude, Double longitude,
+                                                        Double radius, Pageable pageable) {
         return eventRepository.findEventsNearLocation(latitude, longitude, radius, pageable)
-                .map(this::mapEventToResponseDTO);
+                .map(eventMapper::mapToResponse);
     }
-
-    // Helper method to map Event to EventResponseDTO
-    private EventResponseDTO mapEventToResponseDTO(Event event) {
-        LocalDateTime now = LocalDateTime.now();
-        boolean isEventStarted = now.isAfter(event.getEventDate());
-        boolean isEventEnded = now.isAfter(event.getEventEndDate());
-
-        int bookingPercentage = ((event.getTotalSeats() - event.getAvailableSeats()) * 100) / event.getTotalSeats();
-
-        return EventResponseDTO.builder()
-                .eventId(event.getEventId())
-                .eventName(event.getEventName())
-                .description(event.getDescription())
-                .eventType(event.getEventType())
-                .eventStatus(event.getEventStatus())
-                .eventDate(event.getEventDate())
-                .eventEndDate(event.getEventEndDate())
-                .location(event.getLocation())
-                .latitude(event.getLatitude())
-                .longitude(event.getLongitude())
-                .ticketPrice(event.getTicketPrice())
-                .totalSeats(event.getTotalSeats())
-                .availableSeats(event.getAvailableSeats())
-                .imageUrl(event.getImageUrl())
-                .specialInstructions(event.getSpecialInstructions())
-                .createdAt(event.getCreatedAt())
-                .updatedAt(event.getUpdatedAt())
-                .createdByUsername(event.getCreatedBy().getEmail())
-                .createdByUserId(event.getCreatedBy().getId())
-                .bookingPercentage(bookingPercentage)
-                .isEventStarted(isEventStarted)
-                .isEventEnded(isEventEnded)
-                .build();
-    }
-
 
     @Transactional
     public EventResponseDTO updateGenderLimits(Long eventId, int maleLimit, int femaleLimit) {
 
-        // 1. Prevent negative numbers
         if (maleLimit < 0 || femaleLimit < 0) {
-            throw new IllegalArgumentException("Capacity limits cannot be negative.");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Capacity limits cannot be negative");
         }
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
-        // 2. Count currently confirmed bookings
         long confirmedMales = bookingRepository.countByEventAndGenderAndStatus(
                 eventId, UserGender.MALE, BookingStatus.CONFIRMED);
-
         long confirmedFemales = bookingRepository.countByEventAndGenderAndStatus(
                 eventId, UserGender.FEMALE, BookingStatus.CONFIRMED);
 
-        // 3. Prevent lowering limits below confirmed bookings
         if (maleLimit < confirmedMales) {
-            throw new IllegalArgumentException(
-                    "Cannot set male limit to " + maleLimit + " because there are already " + confirmedMales + " confirmed male bookings.");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Cannot set male limit to " + maleLimit +
+                            " — there are already " + confirmedMales + " confirmed male bookings");
         }
 
         if (femaleLimit < confirmedFemales) {
-            throw new IllegalArgumentException(
-                    "Cannot set female limit to " + femaleLimit + " because there are already " + confirmedFemales + " confirmed female bookings.");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "Cannot set female limit to " + femaleLimit +
+                            " — there are already " + confirmedFemales + " confirmed female bookings");
         }
 
-        // 4. Safe to update the limits
         event.setMaleLimit(maleLimit);
         event.setFemaleLimit(femaleLimit);
-
-        // (Optional) If your totalSeats is just male + female, update it here!
         event.setTotalSeats(maleLimit + femaleLimit);
 
-        Event updatedEvent = eventRepository.save(event);
-
-        return mapEventToResponseDTO(updatedEvent);
+        return eventMapper.mapToResponse(eventRepository.save(event));
     }
 }
