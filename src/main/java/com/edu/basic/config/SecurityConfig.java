@@ -42,45 +42,38 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
         http
+                // Disable CSRF for REST API development
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(exceptionHandling ->
-                        exceptionHandling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                // JWT based authentication (stateless)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .sessionManagement(sessionManagement ->
-                        sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                // Handle unauthorized requests
+                .exceptionHandling(exception ->
+                        exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
-                .authorizeHttpRequests(authz -> authz
-                        // ✅ Public auth endpoints - MUST come first
-                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/auth/check-email/**").permitAll()
+                .authorizeHttpRequests(auth -> auth
 
-                        // Public event listing
-                        .requestMatchers(HttpMethod.GET, "/events").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/events/**").permitAll()
+                                // ===============================
+                                // DEVELOPMENT MODE
+                                // ALL APIs ARE PUBLIC
+                                // ===============================
 
-                        // PayHere callback — must be public, PayHere server has no JWT
-                        .requestMatchers("/api/payments/callback").permitAll()
+                                .requestMatchers("/**").permitAll()
 
+                        // ===============================
+                        // Production security will be added later
+                        // ===============================
 
-                        // Actuator endpoints
-                        .requestMatchers("/actuator/**").permitAll()
-
-                        // Swagger/OpenAPI endpoints
-                        .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/swagger-ui.html").permitAll()
-                        .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/v3/api-docs").permitAll()
-                        .requestMatchers("/api-docs/**").permitAll()
-                        .requestMatchers("/api-docs").permitAll()
-
-                        // All other requests need authentication
-                        .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-
+                // Keep JWT filter for future usage
+                .addFilterBefore(
+                        jwtAuthenticationFilter(),
+                        UsernamePasswordAuthenticationFilter.class
+                );
         return http.build();
     }
 

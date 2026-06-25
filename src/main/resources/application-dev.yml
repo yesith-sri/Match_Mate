@@ -3,7 +3,7 @@ spring:
     name: matchmate
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/matchmate_db
+    url: jdbc:postgresql://localhost:5432/matchmate_db
     username: postgres
     password: yesithsri
     driver-class-name: org.postgresql.Driver
@@ -14,7 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none  # ✅ Keep as 'none' since using Liquibase
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
