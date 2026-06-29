@@ -16,7 +16,8 @@ import java.time.LocalTime;
 
 
 @Entity
-@Table
+@Table(name = "bookings")
+@AttributeOverride(name = "id", column = @Column(name = "booking_id"))
 @Getter
 @Setter
 @AllArgsConstructor

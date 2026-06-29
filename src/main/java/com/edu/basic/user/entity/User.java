@@ -2,10 +2,17 @@ package com.edu.basic.user.entity;
 
 import com.edu.basic.entity.BaseEntity;
 import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import lombok.Data;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Data
@@ -54,4 +61,21 @@ public class User extends BaseEntity<Long> {
 
     @Column(name = "profile_image_url", length = 255)
     private String profileImageUrl;
+
+    // --- Matchmaking signals ---
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "interest", length = 100)
+    private Set<String> interests = new HashSet<>();
+
+    // Preferred partner gender: MALE / FEMALE / ANY (null = no preference).
+    @Column(name = "seeking_gender", length = 20)
+    private String seekingGender;
+
+    @Column(name = "min_age_pref")
+    private Integer minAgePref;
+
+    @Column(name = "max_age_pref")
+    private Integer maxAgePref;
 }

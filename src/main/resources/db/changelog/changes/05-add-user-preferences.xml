@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="add-user-preference-columns" author="matchmate-team">
+
+        <addColumn tableName="users">
+            <column name="seeking_gender" type="VARCHAR(20)"/>
+            <column name="min_age_pref" type="INTEGER"/>
+            <column name="max_age_pref" type="INTEGER"/>
+        </addColumn>
+
+    </changeSet>
+
+    <changeSet id="create-user-interests-table" author="matchmate-team">
+
+        <createTable tableName="user_interests">
+
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_user_interests_user"
+                             references="users(user_id)"/>
+            </column>
+
+            <column name="interest" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+
+        </createTable>
+
+        <createIndex indexName="idx_user_interests_user_id" tableName="user_interests">
+            <column name="user_id"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -48,6 +48,12 @@ public class AuthServiceImpl implements AuthService {
         user.setRole("USER");
         user.setIsActive(true);
         user.setIsEmailVerified(false);
+        if (request.getInterests() != null) {
+            user.setInterests(request.getInterests());
+        }
+        user.setSeekingGender(request.getSeekingGender());
+        user.setMinAgePref(request.getMinAgePref());
+        user.setMaxAgePref(request.getMaxAgePref());
 
         User savedUser = userRepository.save(user);
         String token = jwtProvider.generateToken(savedUser.getId(), savedUser.getEmail());
