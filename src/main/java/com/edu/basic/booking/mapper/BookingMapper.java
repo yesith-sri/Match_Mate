@@ -14,7 +14,17 @@ public class BookingMapper {
             return null;
         }
 
-        return new BookingResponse(
-        );
+        BookingResponse response = new BookingResponse();
+        response.setId(booking.getId());
+        response.setUserId(booking.getUser() != null ? booking.getUser().getId() : null);
+        response.setUserFullName(booking.getUser() != null
+                ? booking.getUser().getFirstName() + " " + booking.getUser().getLastName() : null);
+        response.setEventId(booking.getEvent() != null ? booking.getEvent().getEventId() : null);
+        response.setEventName(booking.getEvent() != null ? booking.getEvent().getEventName() : null);
+        response.setBookingDate(booking.getBookingDate());
+        response.setBookingTime(booking.getBookingTime());
+        response.setStatus(booking.getStatus());
+        response.setCreatedAt(booking.getCreatedAt());
+        return response;
     }
 }

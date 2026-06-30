@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "payments")
+@AttributeOverride(name = "id", column = @Column(name = "payment_id"))
 public class Payment extends BaseEntity<Long> {
 
     @OneToOne(fetch = FetchType.LAZY)

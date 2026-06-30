@@ -33,6 +33,10 @@ public class UserMapper {
         response.setCity(user.getCity());
         response.setCountry(user.getCountry());
         response.setProfileImageUrl(user.getProfileImageUrl());
+        response.setInterests(user.getInterests());
+        response.setSeekingGender(user.getSeekingGender());
+        response.setMinAgePref(user.getMinAgePref());
+        response.setMaxAgePref(user.getMaxAgePref());
 
         if (user.getCreatedAt() != null) {
             response.setCreatedAt(user.getCreatedAt().format(formatter));
@@ -75,6 +79,18 @@ public class UserMapper {
         }
         if (request.getProfileImageUrl() != null) {
             user.setProfileImageUrl(request.getProfileImageUrl());
+        }
+        if (request.getInterests() != null) {
+            user.setInterests(request.getInterests());
+        }
+        if (request.getSeekingGender() != null) {
+            user.setSeekingGender(request.getSeekingGender());
+        }
+        if (request.getMinAgePref() != null) {
+            user.setMinAgePref(request.getMinAgePref());
+        }
+        if (request.getMaxAgePref() != null) {
+            user.setMaxAgePref(request.getMaxAgePref());
         }
     }
 }

@@ -211,9 +211,9 @@ public class EventServiceImpl implements EventService {
                         ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
         long confirmedMales = bookingRepository.countByEventAndGenderAndStatus(
-                eventId, UserGender.MALE, BookingStatus.CONFIRMED);
+                eventId, UserGender.MALE.name(), BookingStatus.CONFIRMED);
         long confirmedFemales = bookingRepository.countByEventAndGenderAndStatus(
-                eventId, UserGender.FEMALE, BookingStatus.CONFIRMED);
+                eventId, UserGender.FEMALE.name(), BookingStatus.CONFIRMED);
 
         if (maleLimit < confirmedMales) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST,

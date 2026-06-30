@@ -89,9 +89,11 @@ public class Event {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Booking> bookings = new HashSet<>();
 
+    @Builder.Default
     @Column(name = "male_limit", nullable = false)
     private int maleLimit = 15;
 
+    @Builder.Default
     @Column(name = "female_limit", nullable = false)
     private int femaleLimit = 15;
 }

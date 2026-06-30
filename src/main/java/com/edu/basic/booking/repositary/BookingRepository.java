@@ -4,7 +4,6 @@ package com.edu.basic.booking.repositary;
 
 import com.edu.basic.booking.entity.Booking;
 import com.edu.basic.booking.enums.BookingStatus;
-import com.edu.basic.user.enums.UserGender;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,14 +18,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "AND b.user.gender = :gender " +
             "AND b.status = :status")
     long countByEventAndGenderAndStatus(@Param("eventId") Long eventId,
-                                        @Param("gender") UserGender gender,
+                                        @Param("gender") String gender,
                                         @Param("status") BookingStatus status);
 
     List<Booking> findByUserId(Long userId);
 
     List<Booking> findByEvent_EventId(Long eventId);
 
+    List<Booking> findByEvent_EventIdAndStatus(Long eventId, BookingStatus status);
+
     Optional<Booking> findByIdAndUserId(Long eventId, Long userId);
 
     boolean existsByUserIdAndEvent_EventIdAndStatusNot(Long userId, Long eventId, BookingStatus status);
+
+    boolean existsByUserIdAndEvent_EventIdAndStatus(Long userId, Long eventId, BookingStatus status);
+
+    List<Booking> findByUserIdAndEvent_EventIdAndStatus(Long userId, Long eventId, BookingStatus status);
 }

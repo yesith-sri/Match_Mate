@@ -53,16 +53,24 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + request.getEventId()));
 
-        boolean alreadyBooked = bookingRepository.existsByUserIdAndEvent_EventIdAndStatusNot(
-                userId, request.getEventId(), BookingStatus.CANCELLED);
-        if (alreadyBooked) {
+        // Block only on CONFIRMED bookings — a stale PENDING from a failed payment
+        // attempt should not permanently lock the user out. Cancel any lingering
+        // PENDING bookings so a fresh attempt can proceed.
+        boolean alreadyConfirmed = bookingRepository.existsByUserIdAndEvent_EventIdAndStatus(
+                userId, request.getEventId(), BookingStatus.CONFIRMED);
+        if (alreadyConfirmed) {
             throw new BusinessException(ErrorCode.DUPLICATE_BOOKING,
                     "You have already booked this event");
         }
+        bookingRepository.findByUserIdAndEvent_EventIdAndStatus(userId, request.getEventId(), BookingStatus.PENDING)
+                .forEach(b -> {
+                    b.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(b);
+                });
 
         UserGender gender = UserGender.valueOf(user.getGender().toUpperCase());
         long currentCount = bookingRepository.countByEventAndGenderAndStatus(
-                request.getEventId(), gender, BookingStatus.CONFIRMED);
+                request.getEventId(), gender.name(), BookingStatus.CONFIRMED);
         int limit = (gender == UserGender.MALE) ? event.getMaleLimit() : event.getFemaleLimit();
 
         if (currentCount >= limit) {
@@ -94,7 +102,7 @@ public class BookingServiceImpl implements BookingService {
         Event event = booking.getEvent();
         UserGender gender = UserGender.valueOf(booking.getUser().getGender().toUpperCase());
         long currentCount = bookingRepository.countByEventAndGenderAndStatus(
-                event.getEventId(), gender, BookingStatus.CONFIRMED);
+                event.getEventId(), gender.name(), BookingStatus.CONFIRMED);
         int limit = (gender == UserGender.MALE) ? event.getMaleLimit() : event.getFemaleLimit();
 
         if (currentCount >= limit) {
@@ -107,6 +115,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BookingResponse getBookingById(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -116,6 +125,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<BookingResponse> getBookingsByUser(Long userId) {
         return bookingRepository.findByUserId(userId)
                 .stream()
@@ -124,6 +134,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<BookingResponse> getBookingsByEvent(Long eventId) {
         return bookingRepository.findByEvent_EventId(eventId)
                 .stream()
@@ -154,9 +165,9 @@ public class BookingServiceImpl implements BookingService {
                         ErrorCode.EVENT_NOT_FOUND, "Event not found with id: " + eventId));
 
         int maleCount = (int) bookingRepository.countByEventAndGenderAndStatus(
-                eventId, UserGender.MALE, BookingStatus.CONFIRMED);
+                eventId, UserGender.MALE.name(), BookingStatus.CONFIRMED);
         int femaleCount = (int) bookingRepository.countByEventAndGenderAndStatus(
-                eventId, UserGender.FEMALE, BookingStatus.CONFIRMED);
+                eventId, UserGender.FEMALE.name(), BookingStatus.CONFIRMED);
 
         return EventResponseDTO.builder()
                 .eventId(event.getEventId())

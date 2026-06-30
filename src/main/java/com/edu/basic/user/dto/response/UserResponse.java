@@ -2,6 +2,8 @@ package com.edu.basic.user.dto.response;
 
 import lombok.Data;
 
+import java.util.Set;
+
 @Data
 public class UserResponse {
 
@@ -32,6 +34,14 @@ public class UserResponse {
     private String country;
 
     private String profileImageUrl;
+
+    private Set<String> interests;
+
+    private String seekingGender;
+
+    private Integer minAgePref;
+
+    private Integer maxAgePref;
 
     private String createdAt;
 
